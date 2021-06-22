@@ -1,5 +1,6 @@
 import mundane as m
 from PyPDF2 import PdfFileReader, PdfFileWriter
+
 def testswap():
     l = [0, 3, 2, 9, 1, 3, 72, 12]
 
@@ -22,15 +23,15 @@ def testRemoveDup():
     'sku': 10,
     'item name': 11,
     }   
-    file = open("./amazon_test.txt", "r")
+    file = open("./amazon.txt", "r")
     lines = file.readlines()[1:]
 
     for i in range(len(lines)):
         lines[i] = lines[i].split('\t')
 
     print("BEFORE---------------------")
-    for line in lines:
-        print(line[amazonIndices['order id']])
+    for line in range(len(lines)):
+        print("[{}]->{}".format(line, lines[line][amazonIndices['order id']]))
     print()
 
     line_index = 0
@@ -39,6 +40,7 @@ def testRemoveDup():
         order_id_1 = lines[line_index][amazonIndices['order id']]
         order_id_2 = lines[line_index + 1][amazonIndices['order id']]
         while order_id_1 == order_id_2: # since they will be together, I can just look 1 after.
+            print(f"Found duplicate for {order_id_1}")
             del lines[line_index + 1]
             len_lines = len(lines)
             if (line_index + 1 == len_lines):
@@ -48,11 +50,13 @@ def testRemoveDup():
         line_index += 1
 
     print("AFTER---------------------")
-    for line in lines:
-        print(line[amazonIndices['order id']])
+    for line in range(len(lines)):
+        print("[{}]->{}".format(line, lines[line][amazonIndices['order id']]))
+    print()
     
 
     file.close()
+
 
 def pdfTest():
     file = open('./amazon.pdf', 'rb')
@@ -67,7 +71,7 @@ def pdfTest():
     return
     
 
-def pdfTextTest():
+def testPDFText():
     file = open("./amazon.pdf", "rb")
     pdf = PdfFileReader(file)
     for i in range(0, pdf.getNumPages()):
@@ -75,5 +79,38 @@ def pdfTextTest():
         break
     file.close()
     return
+
+
+def testMergePDFS():
+    new_pdf_file = open("amazon_all.pdf", "wb")
+    new_pdf = PdfFileWriter()
+
+    pdf_count = 0
+
+    file = open("./amazon1.pdf", "rb")
+    pdf = PdfFileReader(file)
+    for page_num in range(0,10):
+        new_pdf.addPage(pdf.getPage(page_num))
+    pdf_count += 1
+    file.close()
+
+    '''
+    while True:
+        try:
+            file = open(f"./amazon1.pdf", "rb")
+            print(f"Reading amazon{pdf_count+1}.pdf")
+            pdf = PdfFileReader(file)
+            for page_num in range(pdf.getNumPages()):
+                new_pdf.addPage(pdf.getPage(page_num))
+            pdf_count += 1
+            file.close()
+            break
+        except:
+            print(f"There are {pdf_count} pdfs!")
+            break
+    '''
+
+    new_pdf.write(new_pdf_file)
+    new_pdf_file.close()
 
 testRemoveDup()
