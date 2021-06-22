@@ -82,35 +82,31 @@ def testPDFText():
 
 
 def testMergePDFS():
-    new_pdf_file = open("amazon_all.pdf", "wb")
+    new_pdf_file = open("./amazon_all.pdf", "wb")
     new_pdf = PdfFileWriter()
 
     pdf_count = 0
 
-    file = open("./amazon1.pdf", "rb")
-    pdf = PdfFileReader(file)
-    for page_num in range(0,10):
-        new_pdf.addPage(pdf.getPage(page_num))
-    pdf_count += 1
-    file.close()
-
-    '''
     while True:
         try:
-            file = open(f"./amazon1.pdf", "rb")
-            print(f"Reading amazon{pdf_count+1}.pdf")
-            pdf = PdfFileReader(file)
-            for page_num in range(pdf.getNumPages()):
-                new_pdf.addPage(pdf.getPage(page_num))
-            pdf_count += 1
-            file.close()
-            break
+            file = open(f"./amazon{pdf_count + 1}.pdf", "rb")
         except:
             print(f"There are {pdf_count} pdfs!")
-            break
-    '''
+            break 
 
-    new_pdf.write(new_pdf_file)
+        print(f"Merging amazon{pdf_count + 1}.pdf")
+        pdf = PdfFileReader(file)
+        for page_num in range(pdf.getNumPages()):
+            new_pdf.addPage(pdf.getPage(page_num))
+        new_pdf.write(new_pdf_file)
+        pdf_count += 1
+        file.close()
+
     new_pdf_file.close()
+    return new_pdf
 
-testRemoveDup()
+def testReturnMerge():
+    new_pdf = testMergePDFS()
+    print(new_pdf.getNumPages())
+
+testReturnMerge()
