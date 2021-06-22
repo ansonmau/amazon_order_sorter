@@ -1,6 +1,8 @@
 from PyPDF2 import PdfFileReader, PdfFileWriter
 from datetime import datetime
+from time import sleep
 import mundane as m
+from log import log
 
 file_indices = {
     'order id': 0,
@@ -12,11 +14,42 @@ file_indices = {
 def isInSync(lines, pdf):
     return len(lines) == pdf.getNumPages()
 
+def findAndMergePDFs():
+    # this file will hold all the pages
+    new_pdf_file = open("./amazon_all.pdf", "wb")
+
+    new_pdf = PdfFileWriter()
+
+    # this is just a counter for how many files there are
+    pdf_count = 0
+
+    # loop through each amazon#.pdf and add each page to the amazon_all pdf.
+    while True:
+        try:
+            file = open(f"./amazon{pdf_count + 1}.pdf", "rb")
+        except:
+            break 
+        
+        pdf = PdfFileReader(file)
+        for page_num in range(pdf.getNumPages()):
+            new_pdf.addPage(pdf.getPage(page_num))
+        
+        # I have to write to pdf here and not after the loop because it won't write properly if the file
+        # is not actively open when I write.
+        new_pdf.write(new_pdf_file)
+        pdf_count += 1
+        file.close()
+
+    log(f"Found {pdf_count} pdf files")
+
+    new_pdf_file.close()
+    return (new_pdf)
+
+
 # the purpose of this func is to remove any duplicates with the same ID. Orders with multiple
 # items are stored as different orders in the file, so this is to remove the lines so the pdf
 # pages and the text line up.
 def RemoveDupIDs(lines):
-
     lineData = []
 
     # splitting lines here for less typing and less headache for the while loop (yay!)
@@ -128,39 +161,40 @@ def createSortedPdf(originalPDF, page_order):
 
 
 def main():
-    try:
+    log("Looking for amazon.txt ...")
+    try: # check for text file
         file = open('./amazon.txt', 'r')
     except:
-        input("Missing amazon.txt. Press enter to exit.")
-        return
-    try:
-        pdf_file = open('./amazon1.pdf', 'rb')
-    except:
-        input("Missing amazon pdf file. Press enter to exit.")
+        log("Missing amazon.txt. Press enter to exit.")
         return
 
-    pdf_obj = PdfFileReader(pdf_file)
+    log("Merging pdfs ...")
+    try: # Try to find pdfs
+        pdf_obj = findAndMergePDFs()
+    except:
+        input("Missing amazon pdf file(s). Press enter to exit.")
+        return
 
     lines = file.readlines()[1:]
     
-    # multiple items in the same order are counted as different orders in the file. I do not want this.
-    RemoveDupIDs(lines)
+    log("Removing duplicate IDs with the same order ...")
+    RemoveDupIDs(lines) # multiple items in the same order are counted as different orders in the file. I do not want this.
 
+    log("Checking if txt and pdf align ...")
     if not isInSync(lines, pdf_obj):
-        print("There are a different number of orders in the text file than there are in the pdf(s).")
+        print("There are a different number of orders in the text file than there are in the pdf(s). Press enter to exit.")
         file.close()
-        pdf_file.close()
-        input("Press enter to exit.")
         return
             
-
+    log("Sorting ...")
     page_order = getGroupedPageOrder(lines) # ignore first line in readlines() cus it's the titles
     file.close() # don't need the file anymore after getting proper order
     
+    log("Saving new pdf ...")
     createSortedPdf(pdf_obj, page_order)
-    
-    pdf_file.close()
 
+    print("Success.")
+    sleep(2)
     return
 
 
