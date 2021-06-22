@@ -9,6 +9,9 @@ file_indices = {
     'item name': 11,
 }
 
+def isInSync(lines, pdf):
+    return len(lines) == pdf.getNumPages()
+
 # the purpose of this func is to remove any duplicates with the same ID. Orders with multiple
 # items are stored as different orders in the file, so this is to remove the lines so the pdf
 # pages and the text line up.
@@ -16,7 +19,7 @@ def RemoveDupIDs(lines):
 
     lineData = []
 
-    # convert lines to a list of lists of data. (xd)
+    # splitting lines here for less typing and less headache for the while loop (yay!)
     for line_index in range(len(lines)):
         lineData.append(lines[line_index].split('\t'))
     
@@ -67,6 +70,7 @@ def sortAscendingPurchaseDate(lines):
         page_num += 1
 
     # ascending bubble sort with custom feature :D
+    # bubble sort not ideal but it is good practice
     # custom feature: sorts the page numbers with it lol
     for i in range(len(order_dates) - 1):
         swapped = False
@@ -87,13 +91,9 @@ def getGroupedPageOrder(lines):
     items = []
     i = 0
 
-    # multiple items in the same order are counted as different orders in the file. I do not want this.
-    RemoveDupIDs(lines)
-
     # sort the lines in ascending date order. The PDF is sorted in this way, so now the lines
     # list and the pdf are synced.
-    page_order = sortAscendingPurchaseDate(lines)
-    m.printListOrdered(lines, page_order)    
+    page_order = sortAscendingPurchaseDate(lines)  
 
     # go through the text lines in ascending purchase date order.
     for page in page_order:
@@ -115,7 +115,7 @@ def getGroupedPageOrder(lines):
 
 
 def createSortedPdf(originalPDF, page_order):
-    output_file = open('Grouped.pdf', 'wb')
+    output_file = open('SORTED.pdf', 'wb')
     output_pdf = PdfFileWriter()
     for i in page_order:
         if i < originalPDF.getNumPages():
@@ -128,17 +128,40 @@ def createSortedPdf(originalPDF, page_order):
 
 
 def main():
-    file = open('./amazon.txt', 'r')
+    try:
+        file = open('./amazon.txt', 'r')
+    except:
+        input("Missing amazon.txt. Press enter to exit.")
+        return
+    try:
+        pdf_file = open('./amazon1.pdf', 'rb')
+    except:
+        input("Missing amazon pdf file. Press enter to exit.")
+        return
 
-    # ignore first line in readlines() cus it's the titles
-    page_order = getGroupedPageOrder(file.readlines()[1:])
-    file.close()
-    pdf_file = open('./amazon.pdf', 'rb')
     pdf_obj = PdfFileReader(pdf_file)
+
+    lines = file.readlines()[1:]
+    
+    # multiple items in the same order are counted as different orders in the file. I do not want this.
+    RemoveDupIDs(lines)
+
+    if not isInSync(lines, pdf_obj):
+        print("There are a different number of orders in the text file than there are in the pdf(s).")
+        file.close()
+        pdf_file.close()
+        input("Press enter to exit.")
+        return
+            
+
+    page_order = getGroupedPageOrder(lines) # ignore first line in readlines() cus it's the titles
+    file.close() # don't need the file anymore after getting proper order
+    
     createSortedPdf(pdf_obj, page_order)
+    
     pdf_file.close()
 
-    return 0
+    return
 
 
 if __name__ == "__main__":
