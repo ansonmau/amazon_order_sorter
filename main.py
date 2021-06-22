@@ -1,9 +1,8 @@
 from PyPDF2 import PdfFileReader, PdfFileWriter
 from datetime import datetime
-import secret
 import mundane as m
 
-amazonIndices = {
+file_indices = {
     'order id': 0,
     'payment date': 2,
     'sku': 10,
@@ -11,20 +10,40 @@ amazonIndices = {
 }
 
 # the purpose of this func is to remove any duplicates with the same ID. Orders with multiple
-# items are stored as different orders in the file, so this is to remove the lines and the pdf
-# pages line up.
-def groupIDs(lines):
-    # -1 in for loop below because i will be looking at the next order, so on the last one I will
-    # get index out of bounds if I don't stop 1 before.
-    for line_index in range(len(lines) - 1):
-        order_id_1 = lines[line_index][amazonIndices['order id']]
-        order_id_2 = lines[line_index + 1][amazonIndices['order id']]
-        while order_id_1 == order_id_2: # since they will be together, I can just look 1 after.
-            del lines[line_index + 1][amazonIndices['order id']]
-            try:
-                order_id_2 = lines[line_index + 1][amazonIndices['order id']]
-            except:
-                break
+# items are stored as different orders in the file, so this is to remove the lines so the pdf
+# pages and the text line up.
+def RemoveDupIDs(lines):
+
+    lineData = []
+
+    # convert lines to a list of lists of data. (xd)
+    for line_index in range(len(lines)):
+        lineData.append(lines[line_index].split('\t'))
+    
+    # Must keep track of current line index and the current length of the lines list
+    line_index = 0
+    len_lines = len(lines)
+
+    # using while instead of for loop since len_lines will be updating throughout the loop.
+    # -1 because I will be looking at index + 1 and dont want to go out of bounds.
+    while line_index < (len_lines - 1):
+        # keep track of order id of current index and the next. Duplicates will be next to each other.
+        orderID_1 = lineData[line_index][file_indices['order id']]
+        orderID_2 = lineData[line_index + 1][file_indices['order id']]
+        
+        # since they are next to each other, I'll just keep looping the one infront of them until it hits one that
+        # isn't the same.
+        while orderID_1 == orderID_2:
+            del lineData[line_index + 1]
+            del lines[line_index + 1]
+            len_lines = len(lines) # update this right after del so I can make sure not to go out of bounds
+            if (line_index + 1 == len_lines): # guard for index out of bound
+                break 
+            else:
+                orderID_2 = lineData[line_index + 1][file_indices['order id']]
+        line_index += 1
+    
+    # no return value since lines is a list (PBR) and that's what I want to change.
     return
 
 
@@ -41,7 +60,7 @@ def sortAscendingPurchaseDate(lines):
     page_num = 0
     for line in lines:
         payment_date = (line.split('\t'))[
-            amazonIndices['payment date']][0:last_date_char]
+            file_indices['payment date']][0:last_date_char]
         date_obj = datetime.strptime(payment_date, "%Y-%m-%dT%H:%M:%S")
         order_dates.append(date_obj)
         order_pages.append(page_num)
@@ -53,8 +72,8 @@ def sortAscendingPurchaseDate(lines):
         swapped = False
         for j in range((len(order_dates) - i) - 1):
             if order_dates[j] > order_dates[j+1]:
-                order_dates[j], order_dates[j +1] = order_dates[j+1], order_dates[j]
-                order_pages[j], order_pages[j + 1] = order_pages[j+1], order_pages[j] # amazing strat xd!
+                order_dates[j], order_dates[j + 1] = order_dates[j + 1], order_dates[j]
+                order_pages[j], order_pages[j + 1] = order_pages[j + 1], order_pages[j] # amazing strat xd!
                 swapped = True
         if not swapped:
             break
@@ -68,15 +87,18 @@ def getGroupedPageOrder(lines):
     items = []
     i = 0
 
+    # multiple items in the same order are counted as different orders in the file. I do not want this.
+    RemoveDupIDs(lines)
+
     # sort the lines in ascending date order. The PDF is sorted in this way, so now the lines
     # list and the pdf are synced.
     page_order = sortAscendingPurchaseDate(lines)
-    m.printList(lines)
+    m.printListOrdered(lines, page_order)    
 
     # go through the text lines in ascending purchase date order.
     for page in page_order:
         data = lines[page].split('\t')
-        sku = data[amazonIndices['sku']]
+        sku = data[file_indices['sku']]
 
         # if the item exists already, insert it in the first position it's found. All of them should
         # be together anyways, so this is kind of adding it to the 'front' of that group.
@@ -117,29 +139,6 @@ def main():
     pdf_file.close()
 
     return 0
-
-
-def pdfTest():
-    file = open('./amazon.pdf', 'rb')
-    pdf = PdfFileReader(file)
-    output_pdf = PdfFileWriter()
-    out_file = open('out.pdf', 'wb')
-    output_pdf.addPage(pdf.getPage(0))
-    output_pdf.write(out_file)
-    print(pdf.getNumPages())
-    file.close()
-    out_file.close()
-    return
-
-
-def pdfTextTest():
-    file = open("./amazon.pdf", "rb")
-    pdf = PdfFileReader(file)
-    for i in range(0, pdf.getNumPages()):
-        print(pdf.getDocumentInfo())
-        break
-    file.close()
-    return
 
 
 if __name__ == "__main__":
