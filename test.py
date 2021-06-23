@@ -105,8 +105,8 @@ def testMergePDFS():
     new_pdf_file.close()
     return new_pdf
 
-def testReturnMerge():
+def testMergeReturn():
     new_pdf = testMergePDFS()
-    print(new_pdf.getNumPages())
+    print(new_pdf)
 
-testReturnMerge()
+testMergeReturn()
