@@ -4,6 +4,7 @@ from time import sleep
 import mundane as m
 from log import log
 
+# column indices of the info in the amazon text file.
 file_indices = {
     'order id': 0,
     'payment date': 2,
@@ -47,7 +48,7 @@ def findAndMergePDFs():
 
 
 # the purpose of this func is to remove any duplicates with the same ID. Orders with multiple
-# items are stored as different orders in the file, so this is to remove the lines so the pdf
+# items are stored as different lines in the file, so this is to remove the lines so the pdf
 # pages and the text line up.
 def RemoveDupIDs(lines):
     lineData = []
@@ -85,9 +86,6 @@ def RemoveDupIDs(lines):
 
 # The purpose of this func is to sort the lines read in the file by date (ascending order)
 def sortAscendingPurchaseDate(lines):
-    # the formatting of the date in the file is always char 0 to char 18 on that column.
-    last_date_char = 19
-
     # one list to keep track of order dates and one to keep track of which page is which order date
     order_dates = []
     order_pages = []
@@ -95,8 +93,8 @@ def sortAscendingPurchaseDate(lines):
     # grabbing the order date of each item along with it's page num
     page_num = 0
     for line in lines:
-        payment_date = (line.split('\t'))[
-            file_indices['payment date']][0:last_date_char]
+        # the part of the date I want is in the first 18 characters       \/
+        payment_date = (line.split('\t'))[file_indices['payment date']][0:19]
         date_obj = datetime.strptime(payment_date, "%Y-%m-%dT%H:%M:%S")
         order_dates.append(date_obj)
         order_pages.append(page_num)
@@ -161,33 +159,45 @@ def createSortedPdf(originalPDF, page_order):
 
 
 def main():
+    # check for text file
     log("Looking for amazon.txt ...")
-    try: # check for text file
+    try: 
         file = open('./amazon.txt', 'r')
     except:
         log("Missing amazon.txt. Press enter to exit.")
         return
 
+    # Try to find pdfs
     log("Merging pdfs ...")
-    try: # Try to find pdfs
+    try: 
+        # get the combined pdf will all the pages from all the pdfs
         pdf_obj = findAndMergePDFs()
+
+        # check for empty pdf. (means amazon1.pdf does not exist which is the first one)
+        if (pdf_obj.getNumPages() == 0): 
+            input("Missing amazon pdf file(s). Press enter to exit.")
+            return
     except:
         input("Missing amazon pdf file(s). Press enter to exit.")
         return
-
+    
+    # ignore first row (titles) which conveniently matches up index 0 to page 0 on the pdf
     lines = file.readlines()[1:]
     
-    log("Removing duplicate IDs with the same order ...")
-    RemoveDupIDs(lines) # multiple items in the same order are counted as different orders in the file. I do not want this.
+    # multiple items in the same order are counted as different orders in the file. I do not want this.
+    log("Removing duplicate IDs of the same order ...")
+    RemoveDupIDs(lines) 
 
+    # check for sync after removing duplicates (# of lines and # of orders will always be different without that)
     log("Checking if txt and pdf align ...")
     if not isInSync(lines, pdf_obj):
-        print("There are a different number of orders in the text file than there are in the pdf(s). Press enter to exit.")
+        print("There are a different number of orders in the text file than there is in the pdf(s). Press enter to exit.")
         file.close()
         return
-            
+    
+    # get the page order with all the identical items next to each other
     log("Sorting ...")
-    page_order = getGroupedPageOrder(lines) # ignore first line in readlines() cus it's the titles
+    page_order = getGroupedPageOrder(lines)
     file.close() # don't need the file anymore after getting proper order
     
     log("Saving new pdf ...")
